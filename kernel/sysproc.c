@@ -109,7 +109,7 @@ sys_trace(void)
   if(argint(0, &num) < 0)
     return -1;
   p->trace_mask = num;
-  return 1;
+  return 0;
 }
 
 uint64
