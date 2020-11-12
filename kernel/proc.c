@@ -21,6 +21,7 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+
 // initialize the proc table at boot time.
 void
 procinit(void)
@@ -43,6 +44,19 @@ procinit(void)
   }
   kvminithart();
 }
+
+
+int procnum(void) {
+  struct proc *p;
+  int count = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->pid) {
+      count++;
+    }
+  }
+  return count;
+}
+
 
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
