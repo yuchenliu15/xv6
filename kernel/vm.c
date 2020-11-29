@@ -47,6 +47,37 @@ kvminit()
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 }
 
+pagetable_t get_kernel(uint64 kstack_va, uint64 kstack_pa) {
+  pagetable_t kernel = (pagetable_t) kalloc();
+  memset(kernel, 0, PGSIZE);
+
+  // uart registers
+  mappages(kernel, UART0, PGSIZE, UART0,  PTE_R | PTE_W);
+
+  // virtio mmio disk interface
+  mappages(kernel, VIRTIO0, PGSIZE, VIRTIO0,  PTE_R | PTE_W);
+
+  // CLINT
+  mappages(kernel, CLINT,  0x10000, CLINT, PTE_R | PTE_W);
+
+  // PLIC
+  mappages(kernel, PLIC, 0x400000, PLIC,  PTE_R | PTE_W);
+
+  // map kernel text executable and read-only.
+  mappages(kernel, KERNBASE, (uint64)etext-KERNBASE,KERNBASE, PTE_R | PTE_X);
+
+  // map kernel data and the physical RAM we'll make use of.
+  mappages(kernel, (uint64)etext, PHYSTOP-(uint64)etext, (uint64)etext, PTE_R | PTE_W);
+
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  mappages(kernel, TRAMPOLINE, PGSIZE, (uint64)trampoline,  PTE_R | PTE_X);
+  
+  mappages(kernel, kstack_va, PGSIZE, kstack_pa,  PTE_R | PTE_W);
+
+  return kernel;
+}
+
 // Switch h/w page table register to the kernel's page table,
 // and enable paging.
 void
@@ -99,14 +130,17 @@ walkaddr(pagetable_t pagetable, uint64 va)
 
   if(va >= MAXVA)
     return 0;
-
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
+
+  if(pte == 0){
     return 0;
-  if((*pte & PTE_V) == 0)
+  }
+  if((*pte & PTE_V) == 0){
     return 0;
-  if((*pte & PTE_U) == 0)
+  }
+  if((*pte & PTE_U) == 0){
     return 0;
+  }
   pa = PTE2PA(*pte);
   return pa;
 }
@@ -156,8 +190,10 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
   for(;;){
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
-    if(*pte & PTE_V)
-      panic("remap");
+    if(*pte & PTE_V){
+      printf("address: %d\n", *pte);
+      panic("remap");      
+    }
     *pte = PA2PTE(pa) | perm | PTE_V;
     if(a == last)
       break;
@@ -193,6 +229,50 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
     *pte = 0;
   }
 }
+
+void
+kvmunmap(uint64 va, uint64 npages, int do_free)
+{
+  uint64 a;
+  pte_t *pte;
+
+  if((va % PGSIZE) != 0)
+    panic("kvmunmap: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    if((pte = walk(kernel_pagetable, a, 0)) == 0)
+      panic("kvmunmap: walk");
+    if((*pte & PTE_V) == 0)
+      panic("kvmunmap: not mapped");
+    if(PTE_FLAGS(*pte) == PTE_V)
+      panic("kvmunmap: not a leaf");
+    if(do_free){
+      uint64 pa = PTE2PA(*pte);
+      kfree((void*)pa);
+    }
+    *pte = 0;
+  }
+}
+
+void
+kvmunmap2(pagetable_t pagetable, uint64 va, uint64 npages)
+{
+  uint64 a;
+  pte_t *pte;
+
+  if((va % PGSIZE) != 0)
+    panic("kvmunmap2: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    if((pte = walk(pagetable, a, 0)) == 0)
+      continue;
+    if((*pte & PTE_V) == 0)
+      panic("kvmunmap2: not mapped");
+
+    *pte = 0;
+  }
+}
+
 
 // create an empty user page table.
 // returns 0 if out of memory.
@@ -289,6 +369,7 @@ freewalk(pagetable_t pagetable)
   kfree((void*)pagetable);
 }
 
+
 // Free user memory pages,
 // then free page-table pages.
 void
@@ -296,6 +377,20 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 {
   if(sz > 0)
     uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 1);
+  freewalk(pagetable);
+}
+
+void
+kvmfree(pagetable_t pagetable, uint64 sz)
+{
+  kvmunmap2(pagetable, UART0, PGROUNDUP(PGSIZE)/PGSIZE);
+  kvmunmap2(pagetable, VIRTIO0, PGROUNDUP(PGSIZE)/PGSIZE);
+  kvmunmap2(pagetable, CLINT, PGROUNDUP(0x10000)/PGSIZE);
+  kvmunmap2(pagetable, PLIC, PGROUNDUP(0x400000)/PGSIZE);
+  kvmunmap2(pagetable, KERNBASE, PGROUNDUP((uint64)etext-KERNBASE)/PGSIZE);
+  kvmunmap2(pagetable, (uint64)etext, PGROUNDUP(PHYSTOP-(uint64)etext)/PGSIZE);
+  kvmunmap2(pagetable, TRAMPOLINE, PGROUNDUP(PGSIZE)/PGSIZE);
+  kvmunmap2(pagetable, 0, 1);
   freewalk(pagetable);
 }
 
