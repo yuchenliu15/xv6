@@ -191,7 +191,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     if((pte = walk(pagetable, a, 1)) == 0)
       return -1;
     if(*pte & PTE_V){
-      printf("address: %d\n", *pte);
+      printf("address: %p\n", *pte);
       panic("remap");      
     }
     *pte = PA2PTE(pa) | perm | PTE_V;
@@ -264,10 +264,30 @@ kvmunmap2(pagetable_t pagetable, uint64 va, uint64 npages)
     panic("kvmunmap2: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    printf("UNMAPPP: %d\n", a);
     if((pte = walk(pagetable, a, 0)) == 0)
       continue;
     if((*pte & PTE_V) == 0)
       panic("kvmunmap2: not mapped");
+
+    *pte = 0;
+  }
+}
+
+void
+kvmunmap_bottom(pagetable_t pagetable, uint64 va, uint64 npages)
+{
+  uint64 a;
+  pte_t *pte;
+
+  if((va % PGSIZE) != 0)
+    panic("kvmunmap2: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    if((pte = walk(pagetable, a, 0)) == 0)
+      continue;
+    if((*pte & PTE_V) == 0)
+      return;
 
     *pte = 0;
   }
@@ -430,6 +450,47 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   return -1;
 }
 
+int
+kvmcopy(pagetable_t old, pagetable_t new, uint64 sz, uint flags)
+{
+  pte_t *pte;
+  uint64 pa, i;
+  char *mem;
+
+  kvmunmap_bottom(new, 0, sz/PGSIZE);
+  
+  if(sz > PLIC) {
+    sz = PLIC;
+  }
+  
+  printf("size: %p\n", flags);
+  
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walk(old, i, 0)) == 0)
+      panic("kvmcopy: pte should exist");
+    if((*pte & PTE_V) == 0)
+      panic("kvmcopy: page not present");
+    pa = PTE2PA(*pte);
+    flags ^= PTE_FLAGS(*pte);
+    printf("pte: %p\n", i);
+    if((mem = kalloc()) == 0)
+      goto err;
+    memmove(mem, (char*)pa, PGSIZE);
+    printf("SUCESSS");
+    
+    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
+      kfree(mem);
+      goto err;
+    }
+    printf("MAPPED: %d\n", i);
+  }
+  return 0;
+
+err:
+  uvmunmap(new, 0, i / PGSIZE, 1);
+  return -1;
+}
+
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
 void
@@ -474,23 +535,26 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 int
 copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
-  uint64 n, va0, pa0;
+  // uint64 n, va0, pa0;
 
-  while(len > 0){
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if(n > len)
-      n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
+  // while(len > 0){
+  //   va0 = PGROUNDDOWN(srcva);
+  //   pa0 = walkaddr(pagetable, va0);
+  //   if(pa0 == 0)
+  //     return -1;
+  //   n = PGSIZE - (srcva - va0);
+  //   if(n > len)
+  //     n = len;
+  //   memmove(dst, (void *)(pa0 + (srcva - va0)), n);
 
-    len -= n;
-    dst += n;
-    srcva = va0 + PGSIZE;
-  }
-  return 0;
+  //   len -= n;
+  //   dst += n;
+  //   srcva = va0 + PGSIZE;
+  // }
+  // return 0;
+
+  return copyin_new(pagetable, dst, srcva, len);
+
 }
 
 // Copy a null-terminated string from user to kernel.

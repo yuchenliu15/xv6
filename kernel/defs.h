@@ -167,6 +167,7 @@ void            kvmmap(uint64, uint64, uint64, int);
 void            kvmfree(pagetable_t, uint64);
 void            kvmunmap(uint64, uint64, int);
 void            kvmunmap2(pagetable_t, uint64, uint64);
+int             kvmcopy(pagetable_t, pagetable_t, uint64, uint);
 
 int             mappages(pagetable_t, uint64, uint64, uint64, int);
 pagetable_t     uvmcreate(void);
@@ -200,6 +201,9 @@ void            virtio_disk_intr(void);
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
+// vmcopyin.c
+int             copyin_new(pagetable_t, char*, uint64, uint64);
+int             copyinstr_new(pagetable_t, char*, uint64, uint64);
 
 
 // stats.c

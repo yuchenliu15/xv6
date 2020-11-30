@@ -116,6 +116,8 @@ exec(char *path, char **argv)
   p->trapframe->sp = sp; // initial stack pointer
   proc_freepagetable(oldpagetable, oldsz);
 
+  kvmcopy(pagetable, p->kernel_pagetable, p->sz, PTE_U);
+
   if(p->pid==1) {
     vmprint(p->pagetable);
   }

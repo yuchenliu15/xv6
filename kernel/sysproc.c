@@ -49,6 +49,9 @@ sys_sbrk(void)
   addr = myproc()->sz;
   if(growproc(n) < 0)
     return -1;
+
+  kvmcopy(myproc()->pagetable, myproc()->kernel_pagetable, myproc()->sz, PTE_U);
+    
   return addr;
 }
 
