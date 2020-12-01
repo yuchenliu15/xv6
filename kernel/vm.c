@@ -264,7 +264,6 @@ kvmunmap2(pagetable_t pagetable, uint64 va, uint64 npages)
     panic("kvmunmap2: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
-    printf("UNMAPPP: %d\n", a);
     if((pte = walk(pagetable, a, 0)) == 0)
       continue;
     if((*pte & PTE_V) == 0)
@@ -455,7 +454,6 @@ kvmcopy(pagetable_t old, pagetable_t new, uint64 sz, uint flags)
 {
   pte_t *pte;
   uint64 pa, i;
-  char *mem;
 
   kvmunmap_bottom(new, 0, sz/PGSIZE);
   
@@ -463,31 +461,23 @@ kvmcopy(pagetable_t old, pagetable_t new, uint64 sz, uint flags)
     sz = PLIC;
   }
   
-  printf("size: %p\n", flags);
-  
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
       panic("kvmcopy: pte should exist");
     if((*pte & PTE_V) == 0)
       panic("kvmcopy: page not present");
     pa = PTE2PA(*pte);
-    flags ^= PTE_FLAGS(*pte);
-    printf("pte: %p\n", i);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    printf("SUCESSS");
+    flags &= PTE_FLAGS(*pte);
     
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
       goto err;
     }
-    printf("MAPPED: %d\n", i);
   }
   return 0;
 
 err:
   uvmunmap(new, 0, i / PGSIZE, 1);
+  panic("kvmcopy failed");
   return -1;
 }
 

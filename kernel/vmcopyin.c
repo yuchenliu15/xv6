@@ -29,7 +29,6 @@ statscopyin(char *buf, int sz) {
 int
 copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
-  printf("copy: %d\n", *dst);
   struct proc *p = myproc();
 
   if (srcva >= p->sz || srcva+len >= p->sz || srcva+len < srcva)
