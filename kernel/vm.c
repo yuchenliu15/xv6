@@ -280,7 +280,7 @@ kvmunmap_bottom(pagetable_t pagetable, uint64 va, uint64 npages)
   pte_t *pte;
 
   if((va % PGSIZE) != 0)
-    panic("kvmunmap2: not aligned");
+    panic("kvmunmap bottom: not aligned");
 
   for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
     if((pte = walk(pagetable, a, 0)) == 0)
@@ -402,6 +402,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 void
 kvmfree(pagetable_t pagetable, uint64 sz)
 {
+  kvmunmap2(pagetable, 0, sz/PGSIZE);
   kvmunmap2(pagetable, UART0, PGROUNDUP(PGSIZE)/PGSIZE);
   kvmunmap2(pagetable, VIRTIO0, PGROUNDUP(PGSIZE)/PGSIZE);
   kvmunmap2(pagetable, CLINT, PGROUNDUP(0x10000)/PGSIZE);
@@ -409,6 +410,7 @@ kvmfree(pagetable_t pagetable, uint64 sz)
   kvmunmap2(pagetable, KERNBASE, PGROUNDUP((uint64)etext-KERNBASE)/PGSIZE);
   kvmunmap2(pagetable, (uint64)etext, PGROUNDUP(PHYSTOP-(uint64)etext)/PGSIZE);
   kvmunmap2(pagetable, TRAMPOLINE, PGROUNDUP(PGSIZE)/PGSIZE);
+  
   kvmunmap2(pagetable, 0, 1);
   freewalk(pagetable);
 }
@@ -450,12 +452,13 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 }
 
 int
-kvmcopy(pagetable_t old, pagetable_t new, uint64 sz, uint flags)
+kvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
   uint64 pa, i;
+  uint flags = ~PTE_U;
 
-  kvmunmap_bottom(new, 0, sz/PGSIZE);
+  kvmunmap_bottom(new, 0, PLIC);
   
   if(sz > PLIC) {
     sz = PLIC;

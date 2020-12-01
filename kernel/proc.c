@@ -154,7 +154,7 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
   if(p->kernel_pagetable)
-    proc_freepagetable_kernel(p->kernel_pagetable, PGSIZE, p->kstack);
+    proc_freepagetable_kernel(p->kernel_pagetable, p->sz, p->kstack);
   p->kernel_pagetable = 0;
   p->kstack = 0;
 }
@@ -207,7 +207,7 @@ proc_freepagetable_kernel(pagetable_t pagetable, uint64 sz, uint64 kstack)
 {
   kvmunmap2(pagetable, kstack, PGROUNDUP(PGSIZE)/PGSIZE);
   kvmunmap(kstack, 1, 1);
-  kvmfree(pagetable, PGSIZE);
+  kvmfree(pagetable, sz);
 }
 
 // a user program that calls exec("/init")
@@ -246,7 +246,7 @@ userinit(void)
 
   p->state = RUNNABLE;
 
-  kvmcopy(p->pagetable, p->kernel_pagetable, p->sz, ~PTE_U);
+  kvmcopy(p->pagetable, p->kernel_pagetable, p->sz);
 
   release(&p->lock);
 }
@@ -295,7 +295,7 @@ fork(void)
 
   np->parent = p;
 
-  kvmcopy(np->pagetable, np->kernel_pagetable, np->sz, ~PTE_U);
+  
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -315,6 +315,8 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  kvmcopy(np->pagetable, np->kernel_pagetable, np->sz);
+  
   release(&np->lock);
 
   return pid;

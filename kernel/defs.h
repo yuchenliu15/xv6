@@ -167,7 +167,7 @@ void            kvmmap(uint64, uint64, uint64, int);
 void            kvmfree(pagetable_t, uint64);
 void            kvmunmap(uint64, uint64, int);
 void            kvmunmap2(pagetable_t, uint64, uint64);
-int             kvmcopy(pagetable_t, pagetable_t, uint64, uint);
+int             kvmcopy(pagetable_t, pagetable_t, uint64);
 
 int             mappages(pagetable_t, uint64, uint64, uint64, int);
 pagetable_t     uvmcreate(void);
