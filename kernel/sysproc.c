@@ -43,6 +43,7 @@ sys_sbrk(void)
 {
   int addr;
   int n;
+  pte_t *pte, *kernel_pte;
 
   if(argint(0, &n) < 0)
     return -1;
@@ -50,7 +51,22 @@ sys_sbrk(void)
   if(growproc(n) < 0)
     return -1;
 
-  kvmcopy(myproc()->pagetable, myproc()->kernel_pagetable, myproc()->sz);
+  if(n > 0){
+    for(int i = addr; i < addr+n; i += PGSIZE){
+      if((pte = walk(myproc()->pagetable, i, 0)) == 0)
+        panic("kvmcopy: pte should exist");
+      if(((*pte) & PTE_V) == 0)
+        panic("kvmcopy: page not present");
+      int flags;
+      flags &= PTE_FLAGS(*pte);
+      kernel_pte = walk(myproc()->kernel_pagetable, i, 1);
+      *kernel_pte = (*pte) & ~PTE_U;
+    }  
+  }else {
+    for(int j = addr-PGSIZE; j > addr + n; j-=PGSIZE){
+      kvmunmap2(myproc()->kernel_pagetable, j, 1);
+    }
+  }
     
   return addr;
 }

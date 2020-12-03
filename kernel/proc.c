@@ -100,13 +100,15 @@ allocproc(void)
 
 found:
   p->pid = allocpid();
+  p->kernel_pagetable = get_kernel();
 
   char *pa = kalloc();
   if(pa == 0)
     panic("kalloc");
-  uint64 va = KSTACK((int) (p - proc));
-  kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  uint64 va = TRAMPOLINE - 2 * PGSIZE;
+  mappages(p->kernel_pagetable, va, PGSIZE, (uint64)pa,  PTE_R | PTE_W);
   p->kstack = va;
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
@@ -127,7 +129,6 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  p->kernel_pagetable = get_kernel(va, (uint64)pa);
 
   return p;
 }
@@ -205,8 +206,6 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 void
 proc_freepagetable_kernel(pagetable_t pagetable, uint64 sz, uint64 kstack)
 {
-  kvmunmap2(pagetable, kstack, PGROUNDUP(PGSIZE)/PGSIZE);
-  kvmunmap(kstack, 1, 1);
   kvmfree(pagetable, sz);
 }
 
@@ -246,9 +245,10 @@ userinit(void)
 
   p->state = RUNNABLE;
 
-  kvmcopy(p->pagetable, p->kernel_pagetable, p->sz);
+    kvmcopy(p->pagetable, p->kernel_pagetable, p->sz);
 
   release(&p->lock);
+
 }
 
 // Grow or shrink user memory by n bytes.
@@ -314,7 +314,7 @@ fork(void)
   pid = np->pid;
 
   np->state = RUNNABLE;
-
+  
   kvmcopy(np->pagetable, np->kernel_pagetable, np->sz);
   
   release(&np->lock);
