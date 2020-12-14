@@ -77,8 +77,20 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  if(which_dev == 2) {
     yield();
+    if(p->ticks > 0) {
+      if(p->current_ticks == p->ticks) {
+        p->current_ticks = 0;
+        void (*handler)() = (void (*)()) (walkaddr(p->pagetable, (uint64)p->handler));
+        (*handler)();
+      }
+      else {
+        p->current_ticks += 1;
+      }
+    }
+
+  }
 
   usertrapret();
 }

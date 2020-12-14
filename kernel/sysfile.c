@@ -484,3 +484,26 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_sigalarm(void)
+{
+  int ticks;
+  uint64 f;
+  if((argint(0, &ticks)) < 0 ||
+    argaddr(1, &f) < 0) {
+    return -1;
+  }
+  
+  struct proc *p = myproc();
+  p->ticks = ticks;
+  p->handler = (void (*)()) f;
+  printf("address: %p\n", p->handler);
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  return 0;
+}
