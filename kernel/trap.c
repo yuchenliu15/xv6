@@ -82,8 +82,7 @@ usertrap(void)
     if(p->ticks > 0) {
       if(p->current_ticks == p->ticks) {
         p->current_ticks = 0;
-        void (*handler)() = (void (*)()) (walkaddr(p->pagetable, (uint64)p->handler));
-        (*handler)();
+        p->trapframe->epc = p->handler;
       }
       else {
         p->current_ticks += 1;

@@ -489,16 +489,16 @@ uint64
 sys_sigalarm(void)
 {
   int ticks;
-  uint64 f;
+  uint64 address;
+  
   if((argint(0, &ticks)) < 0 ||
-    argaddr(1, &f) < 0) {
+    argaddr(1, &address) < 0) {
     return -1;
   }
-  
+
   struct proc *p = myproc();
   p->ticks = ticks;
-  p->handler = (void (*)()) f;
-  printf("address: %p\n", p->handler);
+  p->handler = address;
   return 0;
 }
 

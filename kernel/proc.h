@@ -95,7 +95,7 @@ struct proc {
   int pid;                     // Process ID
   int ticks;
   int current_ticks;
-  void (*handler)();
+  uint64 handler;
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack
