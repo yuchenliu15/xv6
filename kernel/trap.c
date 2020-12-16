@@ -16,6 +16,47 @@ void kernelvec();
 
 extern int devintr();
 
+struct trapframe
+store_trapframe(void)
+{
+  struct proc *p = myproc();
+  struct trapframe t;
+  t.epc = p->trapframe->epc;
+  t.a0 = r_sscratch();
+
+  t.ra = p->trapframe->ra;
+  t.sp = p->trapframe->sp;
+  t.gp = p->trapframe->gp;
+  t.tp = p->trapframe->tp;
+  t.t0 = p->trapframe->t0;
+  t.t1 = p->trapframe->t1;
+  t.t2 = p->trapframe->t2;
+  t.s0 = p->trapframe->s0;
+  t.s1 = p->trapframe->s1;
+  t.a1 = p->trapframe->a1;
+  t.a2 = p->trapframe->a2;
+  t.a3 = p->trapframe->a3;
+  t.a4 = p->trapframe->a4;
+  t.a5 = p->trapframe->a5;
+  t.a6 = p->trapframe->a6;
+  t.a7 = p->trapframe->a7;
+  t.s2 = p->trapframe->s2;
+  t.s3 = p->trapframe->s3;
+  t.s4 = p->trapframe->s4;
+  t.s5 = p->trapframe->s5;
+  t.s6 = p->trapframe->s6;
+  t.s7 = p->trapframe->s7;
+  t.s8 = p->trapframe->s8;
+  t.s9 = p->trapframe->s9;
+  t.s10 = p->trapframe->s10;
+  t.s11 = p->trapframe->s11;
+  t.t3 = p->trapframe->t3;
+  t.t4 = p->trapframe->t4;
+  t.t5 = p->trapframe->t5;
+  t.t6 = p->trapframe->t6;
+  return t;
+}
+
 void
 trapinit(void)
 {
@@ -80,8 +121,10 @@ usertrap(void)
   if(which_dev == 2) {
     yield();
     if(p->ticks > 0) {
-      if(p->current_ticks == p->ticks) {
+      if(p->current_ticks >= p->ticks && !p->session) {
+        p->session = 1;
         p->current_ticks = 0;
+        p->store_trapframe = store_trapframe();
         p->trapframe->epc = p->handler;
       }
       else {

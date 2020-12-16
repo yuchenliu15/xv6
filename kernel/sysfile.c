@@ -502,8 +502,50 @@ sys_sigalarm(void)
   return 0;
 }
 
+void
+restore_trapframe(void)
+{
+  struct proc *p = myproc();
+  struct trapframe t = p->store_trapframe;
+  p->trapframe->epc = t.epc;
+  w_sscratch(t.a0);
+
+  p->trapframe->ra = t.ra;
+  p->trapframe->sp = t.sp;
+  p->trapframe->gp = t.gp;
+  p->trapframe->tp = t.tp;
+  p->trapframe->t0 = t.t0;
+  p->trapframe->t1 = t.t1;
+  p->trapframe->t2 = t.t2;
+  p->trapframe->s0 = t.s0;
+  p->trapframe->s1 = t.s1;
+  p->trapframe->a1 = t.a1;
+  p->trapframe->a2 = t.a2;
+  p->trapframe->a3 = t.a3;
+  p->trapframe->a4 = t.a4;
+  p->trapframe->a5 = t.a5;
+  p->trapframe->a6 = t.a6;
+  p->trapframe->a7 = t.a7;
+  p->trapframe->s2 = t.s2;
+  p->trapframe->s3 = t.s3;
+  p->trapframe->s4 = t.s4;
+  p->trapframe->s5 = t.s5;
+  p->trapframe->s6 = t.s6;
+  p->trapframe->s7 = t.s7;
+  p->trapframe->s8 = t.s8;
+  p->trapframe->s9 = t.s9;
+  p->trapframe->s10 = t.s10;
+  p->trapframe->s11 = t.s11;
+  p->trapframe->t3 = t.t3;
+  p->trapframe->t4 = t.t4;
+  p->trapframe->t5 = t.t5;
+  p->trapframe->t6 = t.t6;  
+}
+
 uint64
 sys_sigreturn(void)
 {
+  restore_trapframe();
+  myproc()->session = 0;
   return 0;
 }

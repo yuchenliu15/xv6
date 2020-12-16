@@ -96,6 +96,8 @@ struct proc {
   int ticks;
   int current_ticks;
   uint64 handler;
+  struct trapframe store_trapframe;
+  uint64 session;
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Virtual address of kernel stack
