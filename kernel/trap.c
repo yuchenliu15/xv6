@@ -24,18 +24,18 @@ child_page() {
   if(mem == 0) {
     return -1;
   }
-  uint64 flags = (PTE_FLAGS(*pte) | PTE_W) & ~PTE_COW;
+  uint64 flags = PTE_FLAGS(*pte);
+  flags |= PTE_W;
+  flags &= ~PTE_COW;
   uint64 pa = PTE2PA(*pte);
-  reference_count[pa/PGSIZE] -= 1;
-  if(reference_count[pa/PGSIZE] == 1){
-    *pte |= PTE_W;
-    *pte &= ~PTE_COW;
-  }
+
+  uvmunmap(myproc()->pagetable,fault, 1, 0);
   memmove(mem, (char*)pa, PGSIZE);
   if(mappages(myproc()->pagetable, fault, PGSIZE, (uint64)mem, flags) == -1) {
     kfree(mem);
     return -1;
   }
+  kfree((void *)pa);
   return 1;
 }
 
