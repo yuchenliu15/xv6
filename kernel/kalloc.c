@@ -13,7 +13,7 @@ void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
-int reference_count[PHYSTOP/PGSIZE];
+int reference_count[PGROUNDUP(PHYSTOP)/PGSIZE];
 
 struct run {
   struct run *next;
@@ -47,12 +47,9 @@ freerange(void *pa_start, void *pa_end)
 void
 kfree(void *pa)
 {
-  if(reference_count[((uint64)pa)/PGSIZE] > 1) {
-    reference_count[((uint64)pa)/PGSIZE] -= 1;
+  reference_count[((uint64)pa)/PGSIZE] -= 1;
+  if (reference_count[((uint64)pa)/PGSIZE] > 0) {
     return;
-  }
-  else {
-    reference_count[((uint64)pa)/PGSIZE] = 0;
   }
 
   struct run *r;
@@ -83,6 +80,7 @@ kalloc(void)
   r = kmem.freelist;
   if(r) {
     kmem.freelist = r->next;
+    // printf("ALLOC %d\n", ((uint64)r)/PGSIZE);
     reference_count[((uint64)r)/PGSIZE] = 1;
   }
   release(&kmem.lock);

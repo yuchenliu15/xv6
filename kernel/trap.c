@@ -31,11 +31,11 @@ child_page() {
 
   uvmunmap(myproc()->pagetable,fault, 1, 0);
   memmove(mem, (char*)pa, PGSIZE);
+  kfree((void *)pa);
   if(mappages(myproc()->pagetable, fault, PGSIZE, (uint64)mem, flags) == -1) {
     kfree(mem);
     return -1;
   }
-  kfree((void *)pa);
   return 1;
 }
 

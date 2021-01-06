@@ -284,11 +284,6 @@ freewalk(pagetable_t pagetable)
       uint64 child = PTE2PA(pte);
       freewalk((pagetable_t)child);
       pagetable[i] = 0;
-    } else if((pte & PTE_V) && (pte & PTE_COW)) {
-      continue;
-    }else if(pte & PTE_V){
-      printf("bits : %p\n", (pte & (PTE_R|PTE_W|PTE_X|PTE_COW)));
-      panic("freewalk: leaf");
     }
   }
   kfree((void*)pagetable);
@@ -378,15 +373,14 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
       flags |= PTE_W;
       flags &= ~PTE_COW;
       uint64 pa = PTE2PA(*pte);
-      reference_count[pa/PGSIZE] -= 1;
 
       uvmunmap(pagetable, va0, 1, 0);
       memmove(mem, (char*)pa, PGSIZE);
+      kfree((void *)pa);
       if(mappages(pagetable, va0, PGSIZE, (uint64)mem, flags) == -1) {
         kfree(mem);
         return -1;
       }
-      kfree((void *)pa);
 
     }
 
