@@ -1,13 +1,21 @@
 #include "types.h"
-
+#include "param.h"
+#include "memlayout.h"
+#include "riscv.h"
+#include "spinlock.h"
+#include "proc.h"
+#include "defs.h"
 void*
 memset(void *dst, int c, uint n)
 {
   char *cdst = (char *) dst;
   int i;
   for(i = 0; i < n; i++){
+    
     cdst[i] = c;
+
   }
+
   return dst;
 }
 

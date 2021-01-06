@@ -10,11 +10,34 @@ struct spinlock tickslock;
 uint ticks;
 
 extern char trampoline[], uservec[], userret[];
-
+extern int reference_count[];
 // in kernelvec.S, calls kerneltrap().
 void kernelvec();
 
 extern int devintr();
+
+int
+child_page() {
+  uint64 fault = PGROUNDDOWN(r_stval());
+  uint64 *pte = walk(myproc()->pagetable, fault, 0);
+  char *mem = kalloc();
+  if(mem == 0) {
+    return -1;
+  }
+  uint64 flags = (PTE_FLAGS(*pte) | PTE_W) & ~PTE_COW;
+  uint64 pa = PTE2PA(*pte);
+  reference_count[pa/PGSIZE] -= 1;
+  if(reference_count[pa/PGSIZE] == 1){
+    *pte |= PTE_W;
+    *pte &= ~PTE_COW;
+  }
+  memmove(mem, (char*)pa, PGSIZE);
+  if(mappages(myproc()->pagetable, fault, PGSIZE, (uint64)mem, flags) == -1) {
+    kfree(mem);
+    return -1;
+  }
+  return 1;
+}
 
 void
 trapinit(void)
@@ -67,6 +90,11 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 15) {
+    if (child_page() != 1) {
+      p->killed = 1;
+    }
+
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
