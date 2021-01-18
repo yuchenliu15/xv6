@@ -33,6 +33,46 @@ struct {
   struct buf head;
 } bcache;
 
+struct bucket {
+  struct spinlock lock;
+  struct buf head;
+};
+
+struct bucket table[13];
+
+void
+init_table(void)
+{
+  for(int i = 0; i < 13; i++) {
+    struct bucket *current = &table[i];
+    char name[] = "       ";
+    snprintf(name, 7, "bcache%d", cpuid());
+    initlock(&current->lock, name);
+    current->head.prev = 0;
+    current->head.next = 0;
+  }
+}
+
+void get(uint dev, uint blockno)
+{
+  uint hash = blockno % 13;
+  struct bucket *current = &table[hash];
+  acquire(&current->lock);
+  struct buf *b;
+  for(b = &current->head.next; b != &current->head; b = b->next) {
+    if(b->blockno == blockno && b->dev == dev) {
+      b->refcnt++;
+      release(&current->lock);
+      acquiresleep(&b->lock);
+      return b;
+    }
+  }
+
+
+
+  panic("hash: can't get");
+}
+
 void
 binit(void)
 {
@@ -121,19 +161,11 @@ brelse(struct buf *b)
 
   releasesleep(&b->lock);
 
-  acquire(&bcache.lock);
   b->refcnt--;
   if (b->refcnt == 0) {
     // no one is waiting for it.
-    b->next->prev = b->prev;
-    b->prev->next = b->next;
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
+    b->time = ticks;
   }
-  
-  release(&bcache.lock);
 }
 
 void
