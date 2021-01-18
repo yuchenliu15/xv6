@@ -30,6 +30,7 @@ freelock(struct spinlock *lk)
 
 static void
 findslot(struct spinlock *lk) {
+
   acquire(&lock_locks);
   int i;
   for (i = 0; i < NLOCK; i++) {

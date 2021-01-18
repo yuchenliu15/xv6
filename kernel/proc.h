@@ -17,6 +17,9 @@ struct context {
   uint64 s10;
   uint64 s11;
 };
+struct run {
+  struct run *next;
+};
 
 // Per-CPU state.
 struct cpu {
@@ -24,6 +27,8 @@ struct cpu {
   struct context context;     // swtch() here to enter scheduler().
   int noff;                   // Depth of push_off() nesting.
   int intena;                 // Were interrupts enabled before push_off()?
+  struct run *freelist;
+  struct spinlock lock;
 };
 
 extern struct cpu cpus[NCPU];
